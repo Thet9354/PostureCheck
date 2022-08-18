@@ -1,0 +1,86 @@
+#include <xc.h>
+
+
+unsigned char press;
+int time_passed;
+
+void delay1sec(void);
+void delay1sec(void)
+{
+    TMR0H = 0x48;
+    TMR0L = 0xE5;
+    
+    INTCONbits.TMR0IF = 0;
+    T0CONbits.TMR0ON  = 1;
+    while (INTCONbits.TMR0IF == 0);
+    T0CONbits.TMR0ON = 0;
+}
+
+
+void main(void) {
+    
+    TRISD = 0x00;                           //set leds as output for testing
+    TRISC = 0xF0;                           // set rc7 as input, set rc2 as output
+    TRISB = 0x0F;                           // ser rb0 as input for interrupt
+    
+    //pwm timer
+    T2CON = 0b00000111;                     // set prescaler to 16
+    CCP1CON = 0b00001100;                    // set as pwm mode
+    PR2 = 149;                              // this is the period
+    CCPR1L = 0;                             //set original speed to 0
+    press = 0;
+    
+    T0CON = 0b10000111;
+    //serial transmission part 
+    char data_in;
+    RCSTA = 0x90;
+    TXSTA = 0x20;   
+    SPBRG = 77;     //set baud rate 
+
+
+    PORTD = 0x00;
+    time_passed=0;
+    PORTCbits.RC2 = 0; // turn off motor
+    
+    PORTDbits.RD0 = 1;      //test if it even works
+    delay1sec();
+    PORTDbits.RD0 = 0;
+    
+    while (1)
+    {
+        RCSTAbits.SPEN = 1;
+
+        while(PIR1bits.RCIF == 0);      // Check if received 1 byte in UART buffer
+        data_in = RCREG;                // Read 1 byte from UART receive buffer
+        
+
+        if (data_in == '1') {           // if user is slouching 
+            PORTDbits.RD0 = 1;
+            time_passed++; 
+            CCPR1L = 74;
+            
+        } else if (data_in == '2') {    // if user is very slouching 
+            PORTDbits.RD1 = 1;
+            time_passed++; 
+            CCPR1L = 112;
+        } else {                        // assume user is not slouching 
+            PORTD = 0x00;
+            time_passed = 0;
+        }
+        
+        if (time_passed >5)             // if user slouches for more than 5 seconds
+        {
+            PORTD = 0xFF;
+
+            PORTCbits.RC2 = 1;
+        }
+        else                            // when user corrects their posture
+        {
+            CCPR1L = 0 ;
+            PORTCbits.RC2 = 0;
+        }
+        delay1sec();
+        RCSTAbits.SPEN = 0;
+    }
+    
+}
