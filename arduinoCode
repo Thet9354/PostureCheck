@@ -1,0 +1,136 @@
+#include <Wire.h>  // Get I2C library
+
+//  ADXL345 1
+#define ACC1 (0x53)     //define ADXL345 address
+#define A1_TO_READ (6) //read bytes (2) every time
+
+//  ADXL345 2
+#define ACC2 (0x1D)     //define ADXL345 address
+#define A2_TO_READ (6) //read bytes (2) every time 
+
+// for the offset
+int a1_offx = 0;
+int a1_offy = 0;
+int a1_offz = 0;
+
+// for the offest
+int a2_offx = 0;
+int a2_offy = 0;
+int a2_offz = 0;
+
+char str[512];
+
+void getAccelerometerData1(int * result) {
+  int regAddress = 0x32;    //The setting of data of the first axis of ADXL345
+  byte buff[A1_TO_READ];
+
+  readFrom(ACC1, regAddress, A1_TO_READ, buff); //read the data from adxl345
+
+  //the value of every axis has 10 resolution, which means 2 bytes
+  //we have to convert 2 bytes into 1 int value.
+  result[0] = (((int)buff[1]) << 8) | buff[0] + a1_offx;
+  result[1] = (((int)buff[3]) << 8) | buff[2] + a1_offy;
+  result[2] = (((int)buff[5]) << 8) | buff[4] + a1_offz;
+}
+
+void getAccelerometerData2(int * result) {
+  int regAddress = 0x32;    //The setting of data ofthe first axis of ADXL345
+  byte buff[A2_TO_READ];
+
+  readFrom(ACC2, regAddress, A2_TO_READ, buff); //read the data from adxl345
+
+  //the value of every axis has 10 resolution, which means 2 bytes
+  //we have to convert 2 bytes into 1 int value.
+  result[0] = (((int)buff[1]) << 8) | buff[0] + a2_offx;
+  result[1] = (((int)buff[3]) << 8) | buff[2] + a2_offy;
+  result[2] = (((int)buff[5]) << 8) | buff[4] + a2_offz;
+}
+
+void setup()
+{
+  int acc1o[3];
+  int acc2o[3];
+  int diffX1, diffY1, diffZ1, diffX2, diffY2, diffZ2;
+  getAccelerometerData1(acc1o);
+  getAccelerometerData2(acc2o);
+
+
+  Serial.begin(9600);
+  Wire.begin();
+  writeTo(ACC1, 0x2D, 24);
+  writeTo(ACC2, 0x2D, 24);
+
+  sprintf(str, "%d,%d,%d,%d,%d,%d", acc1o[0], acc1o[1], acc1o[2], acc2o[0], acc2o[1], acc2o[2]);
+  int regAddress = 0x32;
+  byte buff[A1_TO_READ];
+
+ // Serial.print(str);
+  //Serial.write(10);
+  sprintf(str, "%d,%d,%d,%d,%d,%d", acc1o[0], acc1o[1], acc1o[2], acc2o[0], acc2o[1], acc2o[2]);
+  int regAddress2 = 0x32;    //The setting of data ofthe first axis of ADXL345
+  byte buff2[A2_TO_READ];
+
+  //Serial.print(str);
+  //Serial.write(10);
+  //  Serial.write(10);  Serial.write(10);  Serial.write(10);  Serial.write(10);
+  delay(1000);
+  
+}
+
+// loop reading and printing data
+void loop()
+{
+  int acc1[3];
+  int acc2[3];
+  int acc1o[3];
+  int acc2o[3];
+  int diffX1, diffY1, diffZ1, diffX2, diffY2, diffZ2;
+  getAccelerometerData1(acc1);
+  getAccelerometerData2(acc2);
+
+  sprintf(str, "%d,%d,%d,%d,%d,%d", acc1[0], acc1[1], acc1[2], acc2[0], acc2[1], acc2[2]);
+  //  Serial.print(str);
+  //Serial.print(str);
+  //Serial.write(10);
+  delay(1000); // delay is needed in order not to clog the port
+
+  diffX1 = acc1[0] - acc1o[0];
+  diffY1 = acc1[1] - acc1o[1];
+  diffZ1 = acc1[2] - acc1o[2];
+
+  diffX2 = acc2[0] - acc2o[0];
+  diffY2 = acc2[1] - acc2o[1];
+  diffZ2 = acc2[2] - acc2o[2];
+  if((diffX1>25 && diffX1<45) || (diffX1<-25 && diffX1>-45) ||  (diffY1>15 && diffY1<25) || (diffY1<-15 && diffY1>-25)  ||(diffX2>25 && diffX2<45) || (diffX2<-25 && diffX1>-45) ||  (diffY2>15 && diffY2<25) || (diffY2<-15 && diffY2>-25))
+  { 
+    Serial.write(49);
+  //  Serial.write(10);
+  }
+  else if ((diffX1>46) || (diffX1<-46)  || (diffY1<-26) || (diffY1>26) ||  (diffX2>46) || (diffX2<-46)  || (diffY2<-26) || (diffY2>26))
+  { 
+    Serial.write(50);
+  //  Serial.write(10);
+  }
+    else 
+  {
+    Serial.write(48);
+  //  Serial.write(10);
+}
+
+
+
+
+
+  
+}
+
+// functions
+// write val into the address register of accelerometer
+void writeTo(int DEVICE, byte address, byte val) {
+  Wire.beginTransmission(DEVICE); //send to sensor
+  Wire.write(address);        // send register address
+  Wire.write(val);        // send the value which needed to write
+  Wire.endTransmission(); //end transmission
+}
+
+// read data from the buffer array of addres…
